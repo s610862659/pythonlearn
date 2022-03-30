@@ -1,0 +1,62 @@
+# 人脸
+FACE_DETECT="/v1/human/face/detect",  # 人脸检测与属性识别  https://cloud.baidu.com/doc/EVS/s/fkjpq3yf9
+FACE_MATCH="/v1/human/face/match",  # 人脸比对算子  https://cloud.baidu.com/doc/EVS/s/5kjpqz4ya
+
+FACE_REPO_ADD_FACE="/v1/human/face/add",  # 人脸库添加人脸 https://cloud.baidu.com/doc/EVS/s/Tkjpszooz
+FACE_REPO_DEL_FACE="/v1/human/face/delete",  # 人脸库删除人脸
+FACE_REPO_UPDATE_FACE="/v1/human/face/update",  # 人脸库更新人脸
+FACE_REPO_LIST_FACE="/v1/human/face/list",  # 人脸库查询人脸列表
+
+FACE_ERPO_COPY_USER="/v1/human/face/user/copy",  # 人脸库复制用户
+FACE_REPO_DEL_USER="/v1/human/face/user/delete",  # 人脸库删除用户
+FACE_REPO_QUERY_USER="/v1/human/face/user/query",  # 人脸库查询单个用户
+FACE_REPO_LIST_USER="/v1/human/face/user/list",  # 人脸库用户列表查询
+
+FACE_REPO_ADD="/v1/human/face/group/add",  # 创建人脸库
+FACE_REPO_DEL="/v1/human/face/group/delete",  # 删除人脸库
+FACE_REPO_LIST="/v1/human/face/group/list",  # 人脸库列表查询
+
+FACE_REPO_SEARCH="/v1/human/face/search",  # 单人脸搜索
+FACE_REPO_MSEARCH="/v1/human/face/msearch",  # 多人脸搜索
+
+# 人体
+HUMAN_DETECT="/v1/human/model/detect",  # 人体检测与属性识别
+HUMAN_MATCH="/v1/human/model/match",  # 人体比对
+HUMAN_REID="/v1/human/reid/detect",  # 人体特征
+HUMAN_TRAFFIC_DETECT="/v1/human/traffic/detect",  # 人流量统计
+
+# 车辆
+CAR_ATTR_DETECT="/v1/car/attribute/detect",  # 车辆属性
+CAR_MODEL_DETECT="/v1/car/model/detect",  # 车型识别
+CAR_PLATE_DETECT="/v1/car/plate/detect",  # 车牌
+CAR_REID_DETECT="/v1/car/reid/detect",  # 车辆特征提取
+
+# 电动车
+ELECTRIC_CAR_DETECT="/v1/electric/model/detect",  # 电动车识别
+
+# 全目标
+FULL_TARGET="/v1/whole/target/detect",
+
+# 通用文字识别OCR
+OCR_DETECT="/v1/ocr/detect",
+
+# LOGO 检测
+LOGO_DETECT="/v1/logo/detect",
+
+# 垃圾桶状态
+TRASH_STATUS_DETECT="/v1/trash/status/detect",
+
+# 烟火
+SMOKE_FIRE_DETECT="/v1/smokefire/detect",
+
+# 视频质量
+VIDEO_QUALITY_DETECT="/v1/video/quality/detect",
+
+# 捕鱼
+FISHING_DETECT="/v1/fishing/detect",
+
+# 吸烟
+SMOKING_DETECT="/v1/smoking/detect",
+
+# 船只识别
+BOAT_DETECT="/v1/boat/detect",
