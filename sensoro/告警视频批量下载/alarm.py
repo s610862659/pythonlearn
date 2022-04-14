@@ -3,6 +3,7 @@
 import requests
 import json
 import time
+import os
 from selenium import webdriver
 
 
@@ -41,6 +42,7 @@ def down_video(video_url):
     option.add_argument('headless')
     # 打开chrome浏览器
     driver = webdriver.Chrome(chrome_options=option)
+    # driver = webdriver.Chrome()
     driver.get(video_url)
     time.sleep(15)
     driver.quit()
@@ -127,8 +129,8 @@ class GetVideo:
         # print("接下来请输入正确的时间格式，否则程序可能无法正常执行，如：2013-09-10 23:40:00")
         # startTime = input("录入查询开始时间（y-m-d h:m:s）：")
         # endTime = input("录入查询结束时间时间（y-m-d h:m:s）：")
-        startTime = "2022-04-11 00:00:00"
-        endTime = "2022-04-12 00:00:00"
+        startTime = "2022-04-01 00:00:00"
+        endTime = "2022-04-10 14:20:00"
 
         startTime = int(time.mktime(time.strptime(startTime, "%Y-%m-%d %H:%M:%S"))) * 1000
         endTime = int(time.mktime(time.strptime(endTime, "%Y-%m-%d %H:%M:%S"))) * 1000
@@ -139,7 +141,7 @@ class GetVideo:
                    "endTime": endTime,
                    "gbAlarmType": alarmtype,
                    "page": 1,
-                   "size": 20}
+                   "size": 200}
         # print(gb_data)
         result_alarm = Main().run_main(method="post", url=gb_url, data=gb_data, headers=self.header)
         return result_alarm
@@ -156,28 +158,41 @@ class GetVideo:
             channelid = data_list[i]['device']['channelSerial']
             name = data_list[i]['device']['name']
             captureTime = data_list[i]['capture']['captureTime']
+            action = data_list[i]['capture']['labels']  # 告警类型
+
             down_data = {"captureTime": captureTime, "channelId": channelid, "devicePlatType": 2, "name": name}
 
             down_url = f"https://ai-api.dianjun.sensoro.vip/common/static/v1/video/live.m3u8/{channelid}/hls/download"
 
             du = Main().run_main(method='post', url=down_url, data=down_data, headers=self.header)
 
-            down_video(du['data']['objectSignUrl'])
+            if du['message'] == '查询时间段内的录像不存在':
+                print(1)
+                continue
+            else:
+                down_video(du['data']['objectSignUrl'])
 
-            time.sleep(5)
+                time.sleep(5)
+                update_filename(i, action)
+
+
+def update_filename(num, action):
+    file_list = list(os.walk(os.getcwd()))[0][2]
+    for file in file_list:
+        if file.split('.')[1] == 'ts' and 'XC' in file.split('.')[0]:
+            name = ''
+            for s in action:
+                name += s
+            os.rename(file, file.split('.')[0]+f'_{name}{num}.ts')
 
 
 if __name__ == '__main__':
 
     # 登录系统获取token
-    # print(login())
+    # login()
 
     # 调用一次上方代码获取token
-    headers = {'authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJuYmYiOjE2NDk5MjgxNDMsImV4cCI6MTY1MDE'
-                                '4NzM0MywiaWF0IjoxNjQ5OTI4MTQzLCJ1c2VyX2lkIjo2MCwidXNlcm5hbWUiOiJtbHhjc29waGlhIiwidGVu'
-                                'YW50X2lkIjoxMzY5NTA5Mzk4OTIzMDc5NjgxLCJzZXJ2aWNlX3R5cGUiOiJpdm1zIn0.jJTYzuRA6GFhLdRCu'
-                                'Kzipg4CerstJI-rVeaEhwW_xBh1pK8FJpiCQ6Tr4TGqKAEDTLRnjLiZgyKcwe-S9nKRrw'}
-
-    # 获取视频下载地址
+    headers = login()
+    # # 获取视频下载地址
     GetVideo(headers).down_url()
 

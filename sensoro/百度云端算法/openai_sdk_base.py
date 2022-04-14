@@ -131,8 +131,6 @@ class BaiduAi:
 
         elif image_type == "url":
             params = {"image_url": image}
-        else:
-            raise 'error'
 
         params.update(kwargs)
         return self._base_request(url_path=url_path, **params)

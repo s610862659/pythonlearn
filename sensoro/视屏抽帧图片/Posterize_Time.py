@@ -21,19 +21,12 @@ def frame_video():
 
         time_input = input("请输入间隔时间:")
 
-        while True:
-
-            file_name = input("请输入文件名：")
-            if file_name in filename:
-                print("文件名已存在！")
-                continue
-            else:
-                filename.append(file_name)
-                break
-
-        frame = f"ffmpeg -ss {time_start} -i {input_file} -f image2 -vf fps=fps=1/{time_input} {save_file}/{file_name}_%d.png"
-
-        os.system(frame)
+        file_list = list(os.walk(input_file))[0][2]
+        for file in file_list:
+            if file.split('.')[1] == 'ts':
+                frame = f"ffmpeg -ss {time_start} -i {input_file}/{file} -f image2 -vf " \
+                        f"fps=fps=1/{time_input} {save_file}/{file.split('.')[0]}_%d.png"
+                os.system(frame)
         result = input('视频处理完成！是否继续操作？(y/n)')
         if result == 'y':
             continue
