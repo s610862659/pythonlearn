@@ -1,4 +1,5 @@
-"""通过get、post、put、delete等方法来进行http请求，并拿到请求响应"""
+# coding=utf-8
+"""告警视频批量下载"""
 
 import requests
 import json
