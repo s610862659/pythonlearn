@@ -8,7 +8,6 @@
 使用环境：
     1、点军环境，因测试环境接口调用需要收费，点军环境百度部署了一套，调用不收费
 """
-import glob
 import time
 import os
 import json
@@ -161,28 +160,37 @@ class DataProcessing:
                     self.item_count['human'] += 1
                     self.point['h' + str(item_type['id'])] = self.get_point(item_type)  # 获取坐标位置
                     # self.attribute['h' + str(item_type['id'])] = item_type['attribute']
+                    # print('h' + str(item_type['id']) + f'置信度 {item_type["score"]}')
 
                 elif item_type['type'] == 'face':
 
                     self.item_count['face'] += 1
                     self.point['f' + str(item_type['id'])] = self.get_point(item_type)
+                    # print('f' + str(item_type['id']) + f'置信度 {item_type["score"]}')
 
                 elif item_type['type'] == 'car':
 
                     self.item_count['car'] += 1
                     self.point['c' + str(item_type['id'])] = self.get_point(item_type)
+                    # print('c' + str(item_type['id']) + f'置信度 {item_type["score"]}')
 
                 elif item_type['type'] == 'electric-car':
 
                     self.item_count['electric-car'] += 1
                     self.point['e' + str(item_type['id'])] = self.get_point(item_type)
+                    # print('e' + str(item_type['id']) + f'置信度 {item_type["score"]}')
 
-            print(f"{image_name}：\n对象数量：\n\t人体:{self.item_count['human']},人脸:{self.item_count['face']},"
+            print(f"{image_name} 对象数量：\n\t人体:{self.item_count['human']},人脸:{self.item_count['face']},"
                   f"机动车:{self.item_count['car']},非机动车{self.item_count['electric-car']}")
 
         elif self.key == 'BOAT_DETECT':
+
+            # print(f"{image_name}")
+
             for num in range(len(self.item)):
                 self.point['b'+str(num)] = self.get_point(self.item[num])  # 获取船只坐标位置
+
+                # print('b'+str(num) + f'名称{self.item[num]["name"]}，置信度 {self.item[num]["score"]}')    # 需要置信度时放开
 
         self.draw_rectangle_by_point(image, image_name)    # 对图像标记并保存
 
@@ -276,40 +284,50 @@ def image_list(path):
 def run():
 
     url_map = dict(
-        # FULL_TARGET="/v1/whole/target/detect",  # 全目标
+        FULL_TARGET="/v1/whole/target/detect",  # 全目标
 
-        BOAT_DETECT="/v1/boat/detect",  # 船只识别
+        # BOAT_DETECT="/v1/boat/detect",  # 船只识别
     )
 
     user = "f4c8620816b74f7a9ccf184ece74117f"
     password = "Sensoro2021A#BaoDingA#365"
     server = "https://openai-api.dianjun.sensoro.vip"
 
-    baidu = BaiduAi(url_map['BOAT_DETECT'], user, password, server)
+    baidu = BaiduAi(url_map['FULL_TARGET'], user, password, server)
 
     for im in image_list(file_path):
+
         for key, value in url_map.items():
+
             response = baidu.base_detect(value, im, 'filepath', enable_multiple=True)
 
             if 'data' in response and response['code'] == 0:
-                # print(response['data'])
 
-                # items保存对象不同属性信息
-                # print(response['data']['items'])
-                dp = DataProcessing(response['data']['items'], key)
-                dp.judge_item(im, attribute_yes=0)  # attribute_yes是否返回每个对象属性值，0不返回，1返回;key记录当前使用接口
+                if response['data']['item_count']>0:
+                    # items保存对象不同属性信息
+                    # print(response['data']['items'])
+                    dp = DataProcessing(response['data']['items'], key)
+                    dp.judge_item(im, attribute_yes=0)  # attribute_yes是否返回每个对象属性值，0不返回，1返回;key记录当前使用接口
 
-                if key == 'FULL_TARGET':
-                    # relation_map下保存关联关系list
-                    get_relation_map(response['data']['relation_map'])
+                    if key == 'FULL_TARGET':
+                        # relation_map下保存关联关系list
+                        get_relation_map(response['data']['relation_map'])
+                else:
+                    print(f'{im} 未识别到对象！')
+                    continue
             else:
+                if response['code'] != 0:
+                    print(f'{im} 图片异常！', response)
+                else:
+                    print(f'{im} 未识别到对象！')
                 continue
-    print('ALL FILES ARE PROCESSED! ')
+    print('all files are processed!', time.strftime('%Y-%m-%d %H:%M:%S'))
 
 
 if __name__ == '__main__':
     file_path = os.getcwd() + '/图片/'
-
+    # file_path = '/Users/sunzhaohui/Desktop/升哲测试数据/'
+    print('file processing started！', time.strftime('%Y-%m-%d %H:%M:%S'))
     run()
 
     # 图片类型：url，文件系统路径、base64编码后的字符串，图片参数的类型，["filepath", "url", "base64str"]
@@ -331,6 +349,4 @@ if __name__ == '__main__':
         # top   位置相对上边框的坐标
         # width 宽度
         # height高度
-
-
 
