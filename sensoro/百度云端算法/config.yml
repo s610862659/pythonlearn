@@ -1,14 +1,46 @@
-user: f4c8620816b74f7a9ccf184ece74117f
-password: Sensoro2021A#BaoDingA#365
-server: https://openai-api.dianjun.sensoro.vip
-url_map:
+server: # 各环境地址及用户名密码
+  dianjun:
+    url: https://openai-api.dianjun.sensoro.vip
+    user: f4c8620816b74f7a9ccf184ece74117f
+    password: Sensoro2021A#BaoDingA#365
+
+url_map:  # 算法url
   FULL_TARGET: "/v1/whole/target/detect"  # 全目标
   BOAT_DETECT: "/v1/boat/detect"  # 船只识别
   FISHING_DETECT: "/v1/fishing/detect"  # 非法捕鱼
+  trash_status_detect: "/v1/trash/status/detect"  # 垃圾桶状态识别
+
 file_path:  # 文件所在根目录
   ship: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试集合/
   full: /Users/sunzhaohui/Desktop/升哲测试数据/全目标/
   fish: /Users/sunzhaohui/Desktop/升哲测试数据/捕鱼/
+  trash: /Users/sunzhaohui/Desktop/升哲测试数据/垃圾桶测试集/
+
 ship_result: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试集合/船只记录.xlsx
 num: 73  # 文件写入Excel时使用，每次写入后更新
-column: 7   # 记录结果列，每次运行后更新
+data_log: /Users/sunzhaohui/Desktop/升哲测试数据/数据记录.xlsx
+
+database:
+  host: localhost
+  port: 3306
+  user: root
+  # 不用''会被解析成int类型数据
+  password: '11111111'
+  db_name: sensoro
+  charset: utf8
+
+  # 数据库所在的服务器配置
+  ssh_server:
+    port: 22
+    username: root
+    password: '123456'
+    # 私有密钥文件路径
+    private_key_file:
+    # 私钥密码
+    privat_passowrd:
+    # 如果使用的docker容器部署mysql服务，需要传入mysql的容器id/name
+    mysql_container: mysql8
+    # 数据库备份文件导出的本地路径, 需要保证存在该文件夹
+    sql_data_file: backup_sqls/
+
+
