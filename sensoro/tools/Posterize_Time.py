@@ -1,4 +1,8 @@
 # coding=utf-8
+"""
+功能：视频抽帧为图片
+"""
+
 import os
 import ffmpeg
 

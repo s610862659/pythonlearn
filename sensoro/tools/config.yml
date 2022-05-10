@@ -1,0 +1,15 @@
+server:
+  DianJun:
+    url: https://ai-api.dianjun.sensoro.vip/api/user/v1/passwordLogin
+    user: mlxcsophia
+    password: Sensoro20192020
+  test:
+    url: https://ivms-test1-api.sensoro.com/api/user/v1/passwordLogin
+    user: szh_test_ams
+    password: Sensoro2022
+
+time: # 下载视频起止时间
+  startTime: 2022-03-01 00:00:00
+  endTime: 2022-03-09 07:03:48
+size: 400 # 查询数量
+

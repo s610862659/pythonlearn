@@ -1,72 +1,20 @@
 # coding=utf-8
-"""告警视频批量下载"""
+"""
+功能：告警视频下载
+"""
 
-import requests
-import json
 import time
 import os
 import yaml
 from selenium import webdriver
 
-y = open("/Users/sunzhaohui/Desktop/pythonlearn/sensoro/告警视频批量下载/config.yml")     # 读取yaml文件配置
+from login import *
+
+y = open("./config.yml")     # 读取yaml文件配置
 config = yaml.load(y, Loader=yaml.SafeLoader)
 
 
-class Main(object):
-
-    @staticmethod
-    def send_post(url, data, header):
-
-        # 解决warning报错，对功能无影响
-        requests.packages.urllib3.disable_warnings()
-
-        result = requests.post(url, json=data, headers=header)  # verify=false跳过https验证
-        return json.loads(result.text)
-
-    @staticmethod
-    def send_get(url, data, header):
-        # 解决warning报错，对功能无影响
-        requests.packages.urllib3.disable_warnings()
-
-        result = requests.get(url=url, json=data, headers=header, verify=False)
-        return json.loads(result.text)
-
-    def run_main(self, method, url=None, data=None, header=None):
-        result = None
-        if method == 'post':
-            result = self.send_post(url, data, header)
-        elif method == 'get':
-            result = self.send_get(url, data, header)
-        else:
-            print('methon值错误')
-        return result
-
-
-def down_video(video_url):
-    # 打开浏览器
-    # 加启动配置
-    option = webdriver.ChromeOptions()
-    option.add_argument('headless')
-    # 打开chrome浏览器
-    driver = webdriver.Chrome(chrome_options=option)
-    # driver = webdriver.Chrome()
-    driver.get(video_url)
-    time.sleep(10)
-    driver.quit()
-
-
-def login():
-    login_url = 'https://ai-api.dianjun.sensoro.vip/api/user/v1/passwordLogin'
-    login_data = {"username": "mlxcsophia", "password": "Sensoro20192020", "clientType": 2}
-
-    token = {}
-    info = Main().run_main(method='post', url=login_url, data=login_data)
-
-    token['authorization'] = 'Bearer ' + info['data']['token']
-
-    return token
-
-
+# 下载告警视频
 class GetVideo:
 
     def __init__(self, header):
@@ -174,7 +122,7 @@ class GetVideo:
             if 'list' in du['data']:
                 if du['data']['list']:
 
-                    down_video(du['data']['list'][0]['downloadUrl'])
+                    self.down_video(du['data']['list'][0]['downloadUrl'])
 
                 else:
 
@@ -190,35 +138,58 @@ class GetVideo:
                         continue
                     else:
                         print(2)
-                        down_video(du['data']['objectSignUrl'])
+                        self.down_video(du['data']['objectSignUrl'])
             else:
                 print('服务异常', du)
 
             time.sleep(5)
-            update_filename(action)
+            self.update_filename(action)
 
+    @staticmethod
+    def update_filename(action):
+        file_list = list(os.walk(os.getcwd()))[0][2]
+        for file in file_list:
+            if file.split('.')[1] == 'ts' \
+                    and '有人钓鱼' not in file.split('.')[0] and '网鱼' not in file.split('.')[0]:
 
-def update_filename(action):
-    file_list = list(os.walk(os.getcwd()))[0][2]
-    for file in file_list:
-        if file.split('.')[1] == 'ts' \
-                and '有人钓鱼' not in file.split('.')[0] and '网鱼' not in file.split('.')[0]:
+                name = ''
+                for s in action:
+                    if s == '钓鱼':
+                        s = '有人钓鱼'
+                    name += s
+                os.rename(file, file.split('.')[0]+f'_{name}.ts')
 
-            name = ''
-            for s in action:
-                if s == '钓鱼':
-                    s = '有人钓鱼'
-                name += s
-            os.rename(file, file.split('.')[0]+f'_{name}.ts')
+    @staticmethod
+    def down_video(video_url):
+        # 打开浏览器
+        # 加启动配置
+        option = webdriver.ChromeOptions()
+        option.add_argument('headless')
+        # 打开chrome浏览器
+        driver = webdriver.Chrome(chrome_options=option)
+        # driver = webdriver.Chrome()
+        driver.get(video_url)
+        time.sleep(10)
+        driver.quit()
 
 
 if __name__ == '__main__':
+
+    url = config['server']['test']['url']
+    data = {"username": config['server']['test']['user'],
+            "password": config['server']['test']['password'],
+            "clientType": 2}
 
     # 登录系统获取token
     # login()
 
     # 调用一次上方代码获取token
-    headers = login()
-    # # 获取视频下载地址
-    GetVideo(headers).down_url()
+    headers = login(url, data)
+
+    # 获取视频下载地址，并下载视频
+    # GetVideo(headers).down_url()
+
+    # 人员布控打通门禁
+
+
 

@@ -15,7 +15,7 @@ import json
 import hmac
 import hashlib
 import yaml
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 from hashlib import sha256
 
 import requests
@@ -26,12 +26,6 @@ from typing import Union
 
 import base64
 import cv2
-
-# 读取配置文件
-with open(f"{os.getcwd()}/config.yml", "r", encoding="utf-8") as y:
-    config = yaml.load(y.read(), Loader=yaml.FullLoader)
-
-file = []   # 记录所有符合规则的图片,全目标使用
 
 
 # 获取api auth
@@ -71,8 +65,6 @@ class BaiAuth(object):
             "x-evs-content-md5": node_body,
             "Authorization": None,
             "content-type": "application/json;charset=UTF-8",
-            # "From-Env": CntEnvConstant.ANTMAN_BRANCH,
-            # "X-TRACE-ID": REQUEST_ID_CONTEXT.get(),
         }
         content = f"{self.user}:{self.password}:{uri}:{self.expire_time}:{node_body}"
         self.headers["Authorization"] = hmac.new(
@@ -141,8 +133,139 @@ class BaiduAi:
         return self._base_request(url_path=url_path, **params)
 
 
+# 一些公共方法
+class Util:
+
+    # 文件插入数据库，并存储图片文件分辨率及大小
+    def file_insert_db(self, path, image_type, db):
+
+        file_list = []
+        for f in db.execute_sql(f"""select image from algorithm where alg_type='{image_type}'"""):
+            file_list.append(f[0])
+
+        val = ''    # 保存出入数据
+        for root, dirs, files in os.walk(path):
+
+            new_files = [i for i in files if root+i not in file_list]
+            # print(new_files)
+            new_files.sort()
+            if '结果' in root:
+                continue
+            else:
+                num = False  # 用来判断插入是否有数据，无则不执行sql
+
+                if '.DS_Store' in new_files:
+                    new_files.remove('.DS_Store')   # 删除Mac自带的文件
+                for n in range(len(new_files)):
+                    file_path = root + new_files[n]
+                    if new_files[n].split('.')[1].lower() in ('png', 'jpg', 'jpeg'):
+                        num = True
+                        resolution_size = self.get_resolution_size_for_db(file_path)
+                        if n < len(new_files)-1:
+                            val += f"('{file_path}', '{image_type}', '{resolution_size[0]}', '{resolution_size[1]}'),"
+                        else:
+                            val += f"('{file_path}', '{image_type}', '{resolution_size[0]}', '{resolution_size[1]}')"
+
+        if num:
+
+            db.execute_sql(f"""insert into algorithm(image, alg_type, resolution, size) values {val}""")
+            print("数据保存数据库完成！")
+        else:
+            print("无新增数据，开始调用接口识别数据！")
+
+    @staticmethod
+    def get_resolution_size_for_db(path):
+        img = Image.open(path)
+        resolution = img.size  # 获取文件分辨率
+
+        # 获取文件大小
+        try:
+            size = os.path.getsize(path)
+
+            # 计算大小
+            byte = float(size)
+            kb = byte / 1024
+            if kb >= 1024:
+                m = kb / 1024
+                return f"{resolution[0]}*{resolution[1]}", "%.1fm" % m
+            else:
+                return f"{resolution[0]}*{resolution[1]}", f"{int(kb)}kb"
+
+        except Exception as e:
+            raise e
+
+    # 测试集数据写入Excel
+    def test_data_insert_excel(self, excel_path, sheet_name, file_path):
+        wb = load_workbook(excel_path)
+        sheet = wb[sheet_name]
+        row = input("请输入Excel开始插入位置：")
+        self.file_list(file_path=file_path, whether_excel=1, row=row, sheet=sheet)
+        wb.save(self.read_config()["data_log"])
+
+    # 获取文件大小及分辨率 写入Excel
+    @staticmethod
+    def get_resolution_size(picture, row, sheet):
+
+        img = Image.open(picture)
+        resolution = img.size     # 获取文件分辨率
+
+        sheet.cell(row, 6).value = f"{resolution[0]}*{resolution[1]}"
+
+        # 获取文件大小
+        try:
+            size = os.path.getsize(picture)
+
+            # 计算大小
+            byte = float(size)
+            kb = byte/1024
+            if kb >= 1024:
+                m = kb/1024
+                sheet.cell(row, 5).value = "%.1fm" % m
+            else:
+                sheet.cell(row, 5).value = f"{int(kb)}kb"
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def update_name(old_file, new_name):
+        path = os.path.split(old_file)[0]
+        os.rename(old_file, f"{path}/{new_name}")
+
+    # # 获取目录下所有符合要求的图片，根据关键字判断是否将名称写入Excel中
+    # def file_list(self, file_path, relative_path='', whether_excel=0, row=1, sheet=None):
+    #
+    #     all_file = list(os.listdir(f"{file_path}"))
+    #
+    #     for f in all_file:
+    #         if "结果" not in f and f != "货船客船":
+    #             path = f"{file_path}{f}"
+    #
+    #             if os.path.isfile(path):
+    #                 if f.split('.')[1].lower() in ('png', 'jpg', 'jpeg'):
+    #                     if whether_excel == 1:
+    #                         sheet.cell(row, column=1).value = f"{relative_path}{f}"
+    #                         row += 1
+    #                     else:
+    #                         file.append(path)
+    #             elif os.path.isdir(path):
+    #                 if whether_excel == 1:
+    #                     self.file_list(file_path=f"{path}/", relative_path=f"{f}/",
+    #                                    whether_excel=1, row=row, sheet=sheet)
+    #                 else:
+    #                     self.file_list(file_path=f"{path}/")
+
+    # 获取对象坐标
+
+    @staticmethod
+    def read_config():
+        # 读取配置文件
+        with open(f"{os.getcwd()}/config.yml", "r", encoding="utf-8") as y:
+            config = yaml.load(y.read(), Loader=yaml.FullLoader)
+        return config
+
+
 class DB:
-    mysql = config['database']
+    mysql = Util.read_config()['database']
 
     def __init__(self):
         """
@@ -187,84 +310,242 @@ class DB:
         self.connection.close()
 
 
-# 全目标
-class FullTarget:
+class Target:
 
-    def __init__(self, db):
-        self.db = db
-        self.point = {}     # 记录坐标
-        self.item_count = {'human': 0, 'face': 0, 'car': 0, 'electric-car': 0}
+    def __init__(self, alg_type):
+        self.alg_type = alg_type
+        self.db = DB()
+        self.config = Util.read_config()
+        self.item_count = {}    # 记录图片对象数量
 
-    # 数据处理
-    def judge_item(self, is_item_count=False, is_relation_map=False):
+    def target(self, is_item_count=0, is_relation_map=0):
+        """
+        仅全目标使用该参数
+        :param is_item_count: 是否显示对象数量
+        :param is_relation_map: 是否显示对象关联关系
+        :return:
+        """
 
-        for id, image, response in \
-                self.db.execute_sql(f'''select id, image, baidu_response 
-                            from algorithm where alg_type="full" and is_pass="pass"'''):
+        # 将数据存入数据库，集成到前端平台时，此段代码可去除
+        Util().file_insert_db(self.config['file_path'][self.alg_type], self.alg_type, self.db)
 
-            response = json.loads(response)
-            print(os.path.split(image)[1])
+        # 调用百度算法接口并将结果保存至数据库
+        self._update_response()
 
-            for item in response['data']['items']:
-                if item['type'] == 'human':
+        # 查询所有本次算法需要的数据, relation_map在全目标时使用
+        images = self.db.execute_sql(
+            f'''select id, image, relation_map from algorithm where alg_type='{self.alg_type}' and status=1''')
 
-                    if item["score"] < 0.6:     # 当对象置信度小于0.6时，直接抛弃该数据
-                        continue
+        # 循环处理数据：对图片标记，并将标记后的图片地址保存至数据库
+        for im_id, image, relation_map in images:
+            point = {}  # 记录坐标
+            # 查询图片中所有对象及对应属性内容，attribute仅全目标使用,class_id、name其他算子使用
+            items = self.db.execute_sql(
+                f"""select type, type_id, attribute, class_id, name, location, score 
+                from algorithm_item where algorithm_id={im_id}""")
 
-                    self.item_count['human'] += 1
-                    self.point['h' + str(item['id'])] = Util.get_point(item)
+            # 获取对象标记坐标
+            for item_type, type_id, attribute, class_id, name, location, score in items:
+                if self.alg_type == 'full':
+                    if item_type == 'human':
+                        point['h' + str(type_id)] = self._get_point(json.loads(location))
 
-                    print('h' + str(item['id']) + f'置信度 {item["score"]}')
+                    elif item_type == 'face':
+                        point['f' + str(type_id)] = self._get_point(json.loads(location))
 
-                    # 显示人体相关属性
-                    self.human_attribute(item["attribute"])
+                    elif item_type == 'car':
+                        point['c' + str(type_id)] = self._get_point(json.loads(location))
 
-                elif item['type'] == 'face':
+                    elif item_type == 'electric-car':
+                        point['e' + str(type_id)] = self._get_point(json.loads(location))
 
-                    if item["score"] < 0.6:     # 当对象置信度小于0.6时，直接抛弃该数据
-                        continue
+                elif self.alg_type == 'boat':
+                    point['b' + str(type_id)] = self._get_point(json.loads(location))
 
-                    self.item_count['face'] += 1
-                    self.point['f' + str(item['id'])] = Util.get_point(item)
-                    print('f' + str(item['id']) + f'置信度 {item["score"]}')
+                elif self.alg_type == 'fish':
+                    point['f' + str(type_id)] = self._get_point(json.loads(location))
 
-                elif item['type'] == 'car':
+                elif self.alg_type == 'trash':
+                    point['t' + str(type_id)] = self._get_point(json.loads(location))
 
-                    self.item_count['car'] += 1
-                    self.point['c' + str(item['id'])] = Util.get_point(item)
-                    print('c' + str(item['id']) + f'置信度 {item["score"]}')
-
-                elif item['type'] == 'electric-car':
-
-                    self.item_count['electric-car'] += 1
-                    self.point['e' + str(item['id'])] = Util.get_point(item)
-                    print('e' + str(item['id']) + f'置信度 {item["score"]}')
-
-            new_image = Util.draw_rectangle_and_insert_db(image, self.point)  # 对图像标记并将新文件位置保存至数据库
-            self.db.execute_sql(f'''update algorithm set new_image="{new_image}" where id="{id}"''')
-
-            if is_item_count:
-                print(f"对象数量：\n\t人体:{self.item_count['human']},人脸:{self.item_count['face']},"
-                      f"机动车:{self.item_count['car']},非机动车{self.item_count['electric-car']}")
+            # 对图片进行标记，并将新图片位置保存至数据库
+            new_image = self._draw_rectangle(image, point)  # 对图像标记并将新文件位置保存至数据库
+            self.db.execute_sql(f'''update algorithm set new_image='{new_image}' where id={im_id}''')
 
             if is_relation_map:
-                self.get_relation_map(response['data']['relation_map'])
+                self._get_relation_map(relation_map)
 
-    # 人体属性
+        self.db.close()
+
+    # 获取对象坐标
     @staticmethod
-    def human_attribute(attribute):
-        print(f"人体行为识别相关结果如下：\n"
-              f"动作状态：{attribute['action']['name']}\n"
-              f"帽子状态：{attribute['headwear']['name']}\n"
-              f"眼镜状态：{attribute['glasses']['name']}\n"
-              f"口罩状态：{attribute['face_mask']['name']}\n"
-              f"吸烟状态：{attribute['smoke']['name']}\n"
-              f"手机状态：{attribute['cellphone']['name']}\n"
-              f"是否戴手套：{attribute['glove']['name']}\n")
+    def _get_point(location):
+        return (
+            (int(location['left']), int(location['top'])),
+            (
+                int(location['left'] + location['width']),
+                int(location['top'] + location['height'])
+            )
+        )
+
+    # 对图片进行标记，并返回标记后图片的保存位置
+    @staticmethod
+    def _draw_rectangle(image, point):
+        img = cv2.imread(image)
+
+        for key, value in point.items():
+
+            if key[0] == 'b':
+                color = (255, 255, 0)
+
+            elif key[0] == 'h':
+                color = (0, 255, 0)
+
+            elif key[0] == 'f':
+                color = (0, 0, 255)
+
+            elif key[0] == 'c':
+                color = (255, 0, 0)
+
+            elif key[0] == 'e':
+                color = (0, 255, 255)
+
+            elif key[0] == 't':
+                color = (0, 255, 255)
+
+            cv2.rectangle(img, value[0], value[1], color, 2, 4)
+            cv2.putText(img, key, (value[0][0], value[0][1]+30), cv2.FONT_HERSHEY_COMPLEX, fontScale=1, color=color, thickness=2)
+
+        new_img_file_path = os.path.split(image)[0] + f"/结果/"
+        if not os.path.exists(new_img_file_path):
+            os.makedirs(new_img_file_path)
+
+        cv2.imwrite(f"{new_img_file_path}{os.path.split(image)[1]}", img)
+        return f"{new_img_file_path}{os.path.split(image)[1]}"
+
+    # 将百度接口返回数据保存至数据库
+    def _update_response(self):
+
+        baidu = BaiduAi(self.config["server"]["DianJun"]["user"],
+                        self.config["server"]["DianJun"]["password"],
+                        self.config["server"]["DianJun"]["url"])
+
+        for num in range(5):  # 控制循环5次，防止网络问题导致的失败
+            # 查询数据库中未处理过的数据
+            result = self.db.execute_sql(
+                f'''select id, image from algorithm where alg_type='{self.alg_type}' and status=0''')
+
+            # 判断是否有未处理过的图片，无直接结束循环
+            if not result:
+                break
+            else:
+                for im_id, image in result:
+                    """
+                    百度接口相关参数：
+                    min_score	可选	Double	最小置信度，如果指定该参数，会对检测、识别结果按min_score过滤，只保留置信度大于min_score的特征结果
+                    
+                    以下为全目标可选参数，其他算法接口传入不影响接口调用：
+                    enable_face	可选	Boolean	全目标检测是否检测人脸，默认true；如果不关注人脸目标，可以关闭人脸检测
+                    enable_human	可选	Boolean	全目标检测是否检测人体，默认true；如果不关注人体目标，可以关闭人体检测
+                    enable_car	可选	Boolean	全目标检测是否检测车辆(包括二/三轮车)，默认true；如果不关注车辆目标，可以关闭车辆检测
+                    enable_multiple	可选	Boolean	指定大图模式，全目标检测输出所有目标，默认false，即小图模式
+                    control_flag	可选	String	对于小图模式，指定最大目标输出策略，可选值：FACE、HUMAN、CAR，即以最大人脸、最大人体，还是最大车辆优先输出
+                    """
+
+                    try:
+                        response = baidu.base_detect(
+                            self.config['url_map'][self.alg_type], image, "filepath", enable_multiple=True)
+                    except Exception as e:
+                        # raise e
+                        print(e, "服务异常，重新执行！")
+                        continue
+                    # print(response)
+                    try:
+                        if response["code"] == 0:  # 判断是否成功调用接口
+                            if 'data' in response:  # 部分接口未识别到对象时返回无data字段
+                                if response["data"]["item_count"] > 0:  # 判断接口是否识别到对象
+                                    value = ""  # 参数组装
+                                    items = response["data"]["items"]
+                                    if self.alg_type == 'full':
+                                        for item in items:
+                                            # face属性未单独在一个dict中，需要对其进行组装
+                                            if item['type'] == 'face':
+                                                attribute = self.face_attribute(item)
+                                            elif item['type'] == 'electric-car':  # 删除部分非机动车属性
+                                                item['attribute'].pop('plate')
+                                                item['attribute'].pop('vehicle_type')
+                                                attribute = item['attribute']
+                                            else:
+                                                attribute = item['attribute']
+
+                                            value += f"({im_id}, " \
+                                                     f"'{item['type']}'," \
+                                                     f" {item['id']}, " \
+                                                     f"'{json.dumps(attribute, ensure_ascii=False)}', " \
+                                                     f"Null," \
+                                                     f"Null," \
+                                                     f"'{json.dumps(item['location'])}', " \
+                                                     f"{item['score']}),"
+                                        relation = {'relation_map': response['data']['relation_map']}
+                                        self.db.execute_sql(
+                                            f"""update algorithm 
+                                            set relation_map='{json.dumps(relation)}' 
+                                            where id={im_id}""")
+
+                                    elif self.alg_type in ('boat', 'fish', 'trash'):
+                                        for n in range(len(items)):
+                                            value += f"({im_id}," \
+                                                     f"'{self.alg_type}'," \
+                                                     f"{n}," \
+                                                     f"Null," \
+                                                     f"{items[n]['class_id']}," \
+                                                     f"'{items[n]['name']}'," \
+                                                     f"'{json.dumps(items[n]['location'])}'," \
+                                                     f"{items[n]['score']}),"
+
+                                    self.db.execute_sql(
+                                            f"""insert into algorithm_item
+                                            (algorithm_id, type, type_id, attribute,class_id, name, location, score) 
+                                            values {value[:-1]}""")
+
+                                    self.db.execute_sql(
+                                        f"""update algorithm set status=1 where id={im_id}""")
+
+                                else:
+                                    self.db.execute_sql(
+                                        f'''update algorithm set status=2 where id={im_id}''')
+                            else:
+                                self.db.execute_sql(
+                                    f'''update algorithm set status=2 where id={im_id}''')
+                        elif response['code'] != 0:
+                            self.db.execute_sql(
+                                f"""update algorithm 
+                                set baidu_response='{json.dumps(response)}', status=3 where id={im_id}""")
+
+                    except Exception as e:
+                        # raise e
+                        print(e, "服务异常，重新执行！")
+                        continue
+
+    # 人脸属性未保存在attribute，单独处理
+    @staticmethod
+    def face_attribute(item):
+
+        attribute = {
+            '年龄': item['age'],
+            '表情': item['expression'],   # none:不笑；smile:微笑；laugh:大笑
+            '性别': item['gender'],   # male:男性 female:女性
+            '是否戴眼镜': item['glasses'],    # 是否带眼镜, none:无眼镜，common:普通眼镜，sun:墨镜
+            '人种': item['race'],     # yellow: 黄种人 white: 白种人 black: 黑种人 arabs: 阿拉伯人
+            '口罩': item['mask'],     # 0代表没戴口罩 1代表戴口罩
+            '情绪': item['emotion']  # angry:愤怒 disgust:厌恶 fear:恐惧 happy:高兴 sad:伤心 surprise:惊讶 neutral:无表情 pouty: 撅嘴 grimace:鬼脸
+        }
+
+        return attribute
 
     # 对象关联关系处理
     @staticmethod
-    def get_relation_map(relation_map):
+    def _get_relation_map(relation_map):
         print('对象关联关系：')
         if not relation_map:
             print('对象无关联关系')
@@ -282,532 +563,31 @@ class FullTarget:
                 elif relation['car_id'] != -1 and relation['human_id'] == -1 and relation['face_id'] != -1:
                     print(f"\t车辆{relation['car_id']} 人脸{relation['face_id']}")
 
-    # 对象属性，人体、人脸、机动车、非机动车
-    @staticmethod
-    def get_attribute(item_type, attribute):
-        if item_type[0] == 'h':
-            attribute
-        elif item_type[0] == 'f':
-            attribute
-        elif item_type[0] == 'c':
-            attribute
-        else:
-            attribute
-
-
-# 船只识别
-class ShipTarget:
-
-    def __init__(self, item, row, sheet):
-        self.item = item
-        self.point = {}
-        self.row = row
-        self.sheet = sheet
-
-    def judge_item(self, image):
-
-        path = os.path.split(image)[0]
-        name = os.path.split(image)[1]
-
-        print(name)
-        size = []
-        ship_type = []
-        for num in range(len(self.item)):
-            self.point['b'+str(num)] = Util.get_point(self.item[num])  # 获取船只坐标位置
-
-            print('b'+str(num) + f',{self.item[num]["name"]}，置信度 {self.item[num]["score"]}')    # 需要置信度时放开
-
-            # 船只类型
-            ship_type.append(self.item[num]["name"])
-            # 船只大小
-            size.append(f"{self.item[num]['location']['width']}*{self.item[num]['location']['height']}")
-            # print("船只大小：", f"{self.item[num]['location']['width']}*{self.item[num]['location']['height']}")
-
-        self.ship_in_excel(ship_type, size)
-
-        Util.draw_rectangle_by_point(path, name, self.point)    # 对图像标记并保存
-
-    # 船只类型及大小存入Excel
-    def ship_in_excel(self, type, size):
-
-        ship_type = ''
-        ship_size = ''
-        if self.sheet.cell(self.row, 2).value:
-            pass
-        else:
-            for i in type:
-                if ship_type == '':
-                    ship_type = i
-                else:
-                    ship_type += f",{i}"
-            self.sheet.cell(self.row, 2).value = ship_type
-
-        if self.sheet.cell(self.row, 4).value:
-            pass
-        else:
-            for i in size:
-                if ship_size == '':
-                    ship_size = i
-                else:
-                    ship_size += f",{i}"
-            self.sheet.cell(self.row, 4).value = ship_size
-
-
-# 非法捕鱼
-class FishTarget:
-
-    def __init__(self, item):
-        self.item = item
-        self.point = {}
-
-    def judge_item(self, image):
-        path = os.path.split(image)[0]
-        name = os.path.split(image)[1]
-
-        print(name)
-        for num in range(len(self.item)):
-            self.point['f' + str(num)] = Util.get_point(self.item[num])  # 获取船只坐标位置
-
-            print('f' + str(num) + f',{self.item[num]["name"]}，置信度 {self.item[num]["score"]}')  # 需要置信度时放开
-
-        Util.draw_rectangle_by_point(path, name, self.point)  # 对图像标记并保存
-
-
-# 垃圾桶 - db
-class TrashTarget:
-
-    def __init__(self, db):
-        self.db = db
-        self.point = {}
-
-    def judge_item(self):
-
-        for id, image, response in \
-                self.db.execute_sql(f'''select id, image, baidu_response 
-                            from algorithm where alg_type="trash" and is_pass="pass"'''):
-
-            response = json.loads(response)
-            print(os.path.split(image)[1])
-            for num in range(len(response['data']['items'])):
-
-                self.point['t' + str(num)] = Util.get_point(response['data']['items'][num])
-                print(f"垃圾桶 t{num} 状态为 {response['data']['items'][num]['desc']}")
-
-            new_image = Util.draw_rectangle_and_insert_db(image, self.point)  # 对图像标记并将新文件位置保存至数据库
-            self.db.execute_sql(f'''update algorithm set new_image="{new_image}" where id="{id}"''')
-
-
-# 一些公共方法
-class Util(object):
-
-    @staticmethod
-    def draw_rectangle_and_insert_db(image, point):
-        img = cv2.imread(image)
-
-        for key, value in point.items():
-
-            if key[0] == 'b':
-                color = (0, 255, 0)
-
-            if key[0] == 'h':
-                color = (0, 255, 0)
-
-            elif key[0] == 'f':
-                color = (0, 0, 255)
-
-            elif key[0] == 'c':
-                color = (255, 0, 0)
-
-            elif key[0] == 'e':
-                color = (0, 255, 255)
-            elif key[0] == 't':
-                color = (0, 255, 255)
-
-            cv2.rectangle(img, value[0], value[1], color, 2, 4)
-            cv2.putText(img, key, value[0], cv2.FONT_HERSHEY_COMPLEX, fontScale=2, color=color, thickness=2)
-
-        new_img_file_path = os.path.split(image)[0] + f"/结果/"
-        if not os.path.exists(new_img_file_path):
-            os.makedirs(new_img_file_path)
-
-        cv2.imwrite(f"{new_img_file_path}{os.path.split(image)[1]}", img)
-        return f"{new_img_file_path}{os.path.split(image)[1]}"
-
-    # 保存接口返回response
-    @staticmethod
-    def update_response(db, alg_type, url):
-
-        baidu = BaiduAi(config["server"]["dianjun"]["user"],
-                        config["server"]["dianjun"]["password"],
-                        config["server"]["dianjun"]["url"])
-        while True:
-
-            result = db.execute_sql(f'''select id, image from algorithm where alg_type="{alg_type}" and is_pass is NULL''')
-
-            if not result:
-                break
-
-            elif result:
-
-                for id, file in result:
-
-                    try:
-                        response = baidu.base_detect(url, file, "filepath", enable_multiple=True)
-
-                    except Exception as e:
-                        continue
-
-                    baidu_response = json.dumps(response, ensure_ascii=False)
-
-                    try:
-                        if response["code"] == 0:
-                            if response["data"]["item_count"] > 0:
-                                db.execute_sql(
-                                    f'''update algorithm set baidu_response='{baidu_response}', is_pass="pass" 
-                                    where id="{id}"''')
-
-                            else:
-                                db.execute_sql(
-                                    f'''update algorithm set baidu_response='{baidu_response}', is_pass="fail" 
-                                    where id="{id}"''')
-
-                        elif response['code'] != 0:
-                            db.execute_sql(
-                                f'''update algorithm set baidu_response='{baidu_response}', is_pass="error" 
-                                where id={id};''')
-
-                    except Exception as e:
-                        continue
-
-    # 文件插入数据库，并存储图片文件分辨率及大小
-    def file_insert_db(self, path, type, db):
-
-        file_list = []
-        for f in db.execute_sql(f'''select image from algorithm where alg_type="{type}"'''):
-            file_list.append(f[0])
-
-        sql = 'insert into algorithm(image, alg_type, resolution, size) values '
-
-        for root, dirs, files in os.walk(path):
-            if '结果' in root:
-                continue
-            else:
-                num = False  # 用来判断插入是否有数据，无则不执行sql
-
-                if '.DS_Store' in files:
-                    files.remove('.DS_Store')   # 删除Mac自带的文件
-                for n in range(len(files)):
-                    file_path = root + files[n]
-
-                    if file_path not in file_list:
-                        if files[n].split('.')[1].lower() in ('png', 'jpg', 'jpeg'):
-                            num = True
-                            resolution_size = self.get_resolution_size_for_db(file_path)
-                            if n < len(files)-1:
-                                sql += f'''("{file_path}", "{type}", "{resolution_size[0]}", "{resolution_size[1]}"),'''
-                            else:
-                                sql += f'''("{file_path}", "{type}", "{resolution_size[0]}", "{resolution_size[1]}")'''
-                    else:
-                        continue
-        if num:
-            result = db.execute_sql(sql)
-            print(result)
-        else:
-            print("无新增数据，开始调用接口识别数据！")
-
-    @staticmethod
-    def get_resolution_size_for_db(path):
-        img = Image.open(path)
-        resolution = img.size  # 获取文件分辨率
-
-        # 获取文件大小
-        try:
-            size = os.path.getsize(path)
-
-            # 计算大小
-            byte = float(size)
-            kb = byte / 1024
-            if kb >= 1024:
-                m = kb / 1024
-                return f"{resolution[0]}*{resolution[1]}", "%.1fm" % m
-            else:
-                return f"{resolution[0]}*{resolution[1]}", f"{int(kb)}kb"
-
-        except Exception as e:
-            raise e
-
-    # 测试集数据写入Excel
-    def test_data_insert_excel(self, excel_path, sheet_name, file_path):
-        wb = load_workbook(excel_path)
-        sheet = wb[sheet_name]
-        row = input("请输入Excel开始插入位置：")
-        self.file_list(file_path=file_path, whether_excel=1, row=row, sheet=sheet)
-        wb.save(config["data_log"])
-
-    # 获取文件大小及分辨率 写入Excel
-    @staticmethod
-    def get_resolution_size(picture, row, sheet):
-
-        img = Image.open(picture)
-        resolution = img.size     # 获取文件分辨率
-
-        sheet.cell(row, 6).value = f"{resolution[0]}*{resolution[1]}"
-
-        # 获取文件大小
-        try:
-            size = os.path.getsize(picture)
-
-            # 计算大小
-            byte = float(size)
-            kb = byte/1024
-            if kb >= 1024:
-                m = kb/1024
-                sheet.cell(row, 5).value = "%.1fm" % m
-            else:
-                sheet.cell(row, 5).value = f"{int(kb)}kb"
-        except Exception as e:
-            raise e
-
-    @staticmethod
-    def update_name(old_file, new_name):
-        path = os.path.split(old_file)[0]
-        os.rename(old_file, f"{path}/{new_name}")
-
-    # 获取目录下所有符合要求的图片，根据关键字判断是否将名称写入Excel中
-    def file_list(self, file_path, relative_path='', whether_excel=0, row=1, sheet=None):     # whether_excel判断是否调用Excel
-
-        all_file = list(os.listdir(f"{file_path}"))
-
-        for f in all_file:
-            if "结果" not in f and f != "货船客船":
-                path = f"{file_path}{f}"
-
-                if os.path.isfile(path):
-                    if f.split('.')[1].lower() == 'png' or f.split('.')[1].lower() == 'jpg' or f.split('.')[1].lower() == 'jpeg':
-                        if whether_excel == 1:
-                            sheet.cell(row, column=1).value = f"{relative_path}{f}"
-                            row += 1
-                        else:
-                            file.append(path)
-                elif os.path.isdir(path):
-                    if whether_excel == 1:
-                        self.file_list(file_path=f"{path}/", relative_path=f"{f}/", whether_excel=1, row=row, sheet=sheet)
-                    else:
-                        self.file_list(file_path=f"{path}/")
-
-    # 获取对象坐标
-    @staticmethod
-    def get_point(item):
-
-        return (
-            (int(item['location']['left']), int(item['location']['top'])),
-            (
-                int(item['location']['left'] + item['location']['width']),
-                int(item['location']['top'] + item['location']['height'])
-            )
-        )
-
-    # 图片标记框
-    @staticmethod
-    def draw_rectangle_by_point(img_file_path, image_name, point):
-
-        img = cv2.imread(f"{img_file_path}/{image_name}")
-
-        for key, value in point.items():
-
-            if key[0] == 'b':
-                color = (0, 255, 0)
-
-            if key[0] == 'h':
-                color = (0, 255, 0)
-
-            elif key[0] == 'f':
-                color = (0, 0, 255)
-
-            elif key[0] == 'c':
-                color = (255, 0, 0)
-
-            elif key[0] == 'e':
-                color = (0, 255, 255)
-
-            cv2.rectangle(img, value[0], value[1], color, 2, 4)
-            cv2.putText(img, key, value[0], cv2.FONT_HERSHEY_COMPLEX, fontScale=2, color=color, thickness=2)
-
-        now_time = datetime.datetime.now()
-        new_img_file_path = img_file_path + f"/结果{now_time.year}{now_time.month}{now_time.day}/"
-        if not os.path.exists(new_img_file_path):
-            os.makedirs(new_img_file_path)
-
-        cv2.imwrite(f"{new_img_file_path}{image_name}", img)
-
-
-class Run:
-
-    @staticmethod
-    def use_api(api_name, url):
-
-        baidu = BaiduAi(config["server"]["dianjun"]["user"],
-                        config["server"]["dianjun"]["password"],
-                        config["server"]["dianjun"]["url"])
-
-        num = {"all": 0, "yes": 0, "no": 0, "error": 0}  # 记录成功及失败数
-
-        # 根据选择调用的api判断
-        # 船只识别
-        if api_name == "BOAT_DETECT":
-
-            for row in range(73, 102):      # 按行读取Excel中文件名
-                num["all"] += 1
-                wb = load_workbook(config["ship_result"])
-                sheet = wb.active
-
-                file_name = sheet.cell(row, 1).value
-
-                im = config["file_path"]["ship"]+file_name
-
-                # Excel中写入文件大小及分辨率
-                Util().get_resolution_size(picture=im, row=row, sheet=sheet)
-
-                try:
-                    response = baidu.base_detect(url, im, 'filepath', enable_multiple=True)
-
-                    if "data" in response:
-                        if response["code"] == 0:
-                            if response["data"]["item_count"] > 0:
-
-                                num["yes"] += 1
-
-                                sheet.cell(row, column=config["column"]).value = "yes"
-
-                                dp = ShipTarget(response['data']['items'], row, sheet=sheet)
-                                dp.judge_item(im)
-
-                            else:
-                                num["no"] += 1
-                                sheet.cell(row, column=config["column"]).value = "no"
-                                print(f'{im} 未识别到对象！')
-
-                        elif response['code'] != 0:
-                            num['error'] += 1
-                            sheet.cell(row, column=config["column"]).value = "error"
-                            print(f'{im} 图片异常！', response)
-                    else:
-                        print(f'{im} 服务异常！', response)
-                    wb.save(config["ship_result"])
-                finally:
-                    wb.save(config["ship_result"])
-                    continue
-
-        # 全目标
-        elif api_name == "FULL_TARGET":
-
-            Util().file_list(file_path=config['file_path']['full'])
-
-            for im in file:
-                num["all"] += 1
-                response = baidu.base_detect(url, im, 'filepath', enable_multiple=True)
-
-                if "data" in response:
-                    if response["code"] == 0:
-                        if response["data"]["item_count"] > 0:
-
-                            num["yes"] += 1
-
-                            dp = FullTarget(response['data'])
-                            dp.judge_item(im)
-
-                        else:
-                            num["no"] += 1
-                            print(f'{im} 未识别到对象！')
-
-                    elif response['code'] != 0:
-                        num['error'] += 1
-                        print(f'{im} 图片异常！', response)
-                else:
-                    print(f'{im} 服务异常！', response)
-
-        # 非法捕鱼
-        elif api_name == "FISHING_DETECT":
-            Util().file_list(file_path=config['file_path']['fish'])
-
-            for im in file:
-
-                num["all"] += 1
-                response = baidu.base_detect(url, im, 'filepath', enable_multiple=True)
-                # print(response)
-                if "data" in response:
-                    if response["code"] == 0:
-                        if response["data"]["item_count"] > 0:
-                            num["yes"] += 1
-                            dp = FishTarget(response['data']['items'])
-                            dp.judge_item(im)
-
-                        else:
-                            num["no"] += 1
-                            print(f'{im} 未识别到对象！')
-
-                    elif response['code'] != 0:
-                        num['error'] += 1
-                        print(f'{im} 图片异常！', response)
-                else:
-                    print(f'{im} 服务异常！', response)
-
-        print(f"图片总数：{num['all']}\n成功识别数：{num['yes']}\n未识别到目标数：{num['no']}\n接口异常数：{num['error']}")
-
-        print('all files are processed!', time.strftime('%Y-%m-%d %H:%M:%S'))
-
-    def run(self):
-
-        db = DB()
-
-        while True:
-            api = input("请选择调用的api\n1、全目标\n2、船只识别：\n3、非法捕鱼\n4、垃圾桶检测\n")
-            if api not in ("1", "2", "3", "4"):
-                print("选择错误！")
-                continue
-            else:
-                break
-
-        if api == "1":  # 全目标
-
-            # 1、数据库中保存所有文件
-            Util().file_insert_db(config['file_path']['full'], type='full', db=db)
-
-            # 2、调用对应接口并将返回的response保存至数据库
-            Util().update_response(db, 'full', config["url_map"]["FULL_TARGET"])
-
-            FullTarget(db).judge_item()
-
-        elif api == "2":    # 船只识别
-
-            # 船只数据写入Excel
-            # Util().test_data_insert_excel(config["ship_result"], 'boat', config['file_path']['ship'])
-
-            self.use_api("BOAT_DETECT", config["url_map"]["BOAT_DETECT"])
-
-        elif api == "3":    # 非法捕鱼
-            # 捕鱼数据写入Excel
-            # Util().test_data_insert_excel(config["data_log"], "fishing_detect", config["data_log"])
-
-            self.use_api("FISHING_DETECT", config["url_map"]["FISHING_DETECT"])
-
-        elif api == "4":    # 垃圾桶检测
-
-            # 数据库中保存文件及路径，type文件适用算法类型  full：全目标,fishing：非法捕鱼,boat：船只,trash：垃圾桶
-            Util().file_insert_db(config["file_path"]["trash"], type='trash', db=db)
-
-            Util().update_response(db, "trash", config["url_map"]["trash_status_detect"])
-
-            TrashTarget(db).judge_item()
-
-        db.close()
-
 
 if __name__ == '__main__':
 
     print('file processing started！', time.strftime('%Y-%m-%d %H:%M:%S'))
 
-    Run().run()
+    while True:
+        api = input("请选择调用的api\n1、全目标\n2、船只识别：\n3、非法捕鱼\n4、垃圾桶检测\n")
+        if api not in ("1", "2", "3", "4"):
+            print("选择错误！")
+            continue
+        else:
+            break
+
+    if int(api) == 1:
+        Target('full').target()
+    elif int(api) == 2:
+        Target('boat').target()
+    elif int(api) == 3:
+        Target("fish").target()
+    elif int(api) == 4:
+        Target('trash').target()
+
+    print('file processing end！', time.strftime('%Y-%m-%d %H:%M:%S'))
+
+    # Run().run()
 
     # BaiduAi._base_detect(url, image, 'url', min_score=0.6)
 

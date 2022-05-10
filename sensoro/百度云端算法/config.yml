@@ -1,24 +1,24 @@
 server: # 各环境地址及用户名密码
-  dianjun:
+  DianJun:
     url: https://openai-api.dianjun.sensoro.vip
     user: f4c8620816b74f7a9ccf184ece74117f
     password: Sensoro2021A#BaoDingA#365
 
 url_map:  # 算法url
-  FULL_TARGET: "/v1/whole/target/detect"  # 全目标
-  BOAT_DETECT: "/v1/boat/detect"  # 船只识别
-  FISHING_DETECT: "/v1/fishing/detect"  # 非法捕鱼
-  trash_status_detect: "/v1/trash/status/detect"  # 垃圾桶状态识别
+  full: "/v1/whole/target/detect"  # 全目标
+  boat: "/v1/boat/detect"  # 船只识别
+  fish: "/v1/fishing/detect"  # 非法捕鱼
+  tarsh: "/v1/trash/status/detect"  # 垃圾桶状态识别
 
 file_path:  # 文件所在根目录
-  ship: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试集合/
+  boat: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试/
   full: /Users/sunzhaohui/Desktop/升哲测试数据/全目标/
   fish: /Users/sunzhaohui/Desktop/升哲测试数据/捕鱼/
   trash: /Users/sunzhaohui/Desktop/升哲测试数据/垃圾桶测试集/
 
-ship_result: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试集合/船只记录.xlsx
-num: 73  # 文件写入Excel时使用，每次写入后更新
-data_log: /Users/sunzhaohui/Desktop/升哲测试数据/数据记录.xlsx
+# ship_result: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试集合/船只记录.xlsx
+# num: 73  # 文件写入Excel时使用，每次写入后更新
+# data_log: /Users/sunzhaohui/Desktop/升哲测试数据/数据记录.xlsx
 
 database:
   host: localhost
