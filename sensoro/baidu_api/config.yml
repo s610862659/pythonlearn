@@ -9,12 +9,14 @@ url_map:  # 算法url
   boat: "/v1/boat/detect"  # 船只识别
   fish: "/v1/fishing/detect"  # 非法捕鱼
   tarsh: "/v1/trash/status/detect"  # 垃圾桶状态识别
+  face: "/v1/human/face/match"  # 人脸比对（一对一）
 
 file_path:  # 文件所在根目录
-  boat: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试/
-  full: /Users/sunzhaohui/Desktop/升哲测试数据/全目标/
-  fish: /Users/sunzhaohui/Desktop/升哲测试数据/捕鱼/
-  trash: /Users/sunzhaohui/Desktop/升哲测试数据/垃圾桶测试集/
+  boat: /Users/sunzhaohui/Desktop/SensoroTestData/船只测试/
+  full: /Users/sunzhaohui/Desktop/SensoroTestData/全目标/
+  fish: /Users/sunzhaohui/Desktop/SensoroTestData/捕鱼/
+  trash: /Users/sunzhaohui/Desktop/SensoroTestData/垃圾桶测试集/
+  face: /Users/sunzhaohui/Desktop/SensoroTestData/baidu_human_face/门禁登记照
 
 # ship_result: /Users/sunzhaohui/Desktop/升哲测试数据/船只测试集合/船只记录.xlsx
 # num: 73  # 文件写入Excel时使用，每次写入后更新

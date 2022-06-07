@@ -10,7 +10,7 @@ from selenium import webdriver
 
 from login import *
 
-y = open("./config.yml")     # 读取yaml文件配置
+y = open(os.path.dirname(os.getcwd())+"/config.yml")     # 读取yaml文件配置
 config = yaml.load(y, Loader=yaml.SafeLoader)
 
 
@@ -187,9 +187,8 @@ if __name__ == '__main__':
     headers = login(url, data)
 
     # 获取视频下载地址，并下载视频
-    # GetVideo(headers).down_url()
+    GetVideo(headers).down_url()
 
-    # 人员布控打通门禁
 
 
 

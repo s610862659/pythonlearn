@@ -1,7 +1,7 @@
 # coding: utf-8
 """
 适用范围：
-    1、百度云端算法
+    1、baidu_api
 测试内容：
     1、对象检测数量
     2、对象关联方式
@@ -66,7 +66,7 @@ class BaiAuth(object):
             "Authorization": None,
             "content-type": "application/json;charset=UTF-8",
         }
-        content = f"{self.user}:{self.password}:{uri}:{self.expire_time}:{node_body}"
+        content = f"{self.user}:{self.password}:{uri}:{self.expire_time}"
         self.headers["Authorization"] = hmac.new(
             key=self.password.encode("utf-8"),
             msg=content.encode("utf-8"),
@@ -97,9 +97,10 @@ class BaiduAi:
         """
         api = self.server_addr + url_path
 
-        headers = self.get_or_create_request_headers(url_path, kwargs)
+        headers = self.get_or_create_request_headers(url_path, body=kwargs)
 
         # a = datetime.datetime.now()
+        # print(f"{api}\n{kwargs}\n{headers}")
         r = requests.post(api, json=kwargs, headers=headers)
         # b = datetime.datetime.now()
         # print((b-a).seconds)
@@ -143,10 +144,10 @@ class Util:
         for f in db.execute_sql(f"""select image from algorithm where alg_type='{image_type}'"""):
             file_list.append(f[0])
 
-        val = ''    # 保存出入数据
+        val = ''    # 保存sql数据
         for root, dirs, files in os.walk(path):
-
-            new_files = [i for i in files if root+i not in file_list]
+            # print(root,'\n', dirs,'\n',files,'\n')
+            new_files = [i for i in files if root+'/'+i not in file_list]
             # print(new_files)
             new_files.sort()
             if '结果' in root:
@@ -157,7 +158,7 @@ class Util:
                 if '.DS_Store' in new_files:
                     new_files.remove('.DS_Store')   # 删除Mac自带的文件
                 for n in range(len(new_files)):
-                    file_path = root + new_files[n]
+                    file_path = root + '/' + new_files[n]
                     if new_files[n].split('.')[1].lower() in ('png', 'jpg', 'jpeg'):
                         num = True
                         resolution_size = self.get_resolution_size_for_db(file_path)
@@ -473,7 +474,8 @@ class Target:
                                                 attribute = self.face_attribute(item)
                                             elif item['type'] == 'electric-car':  # 删除部分非机动车属性
                                                 item['attribute'].pop('plate')
-                                                item['attribute'].pop('vehicle_type')
+                                                if 'vehicle_type' in item['attribute']:
+                                                    item['attribute'].pop('vehicle_type')
                                                 attribute = item['attribute']
                                             else:
                                                 attribute = item['attribute']
@@ -523,7 +525,7 @@ class Target:
                                 set baidu_response='{json.dumps(response)}', status=3 where id={im_id}""")
 
                     except Exception as e:
-                        # raise e
+                        raise e
                         print(e, "服务异常，重新执行！")
                         continue
 
@@ -538,7 +540,8 @@ class Target:
             '是否戴眼镜': item['glasses'],    # 是否带眼镜, none:无眼镜，common:普通眼镜，sun:墨镜
             '人种': item['race'],     # yellow: 黄种人 white: 白种人 black: 黑种人 arabs: 阿拉伯人
             '口罩': item['mask'],     # 0代表没戴口罩 1代表戴口罩
-            '情绪': item['emotion']  # angry:愤怒 disgust:厌恶 fear:恐惧 happy:高兴 sad:伤心 surprise:惊讶 neutral:无表情 pouty: 撅嘴 grimace:鬼脸
+            # '情绪': item['emotion']
+            # angry:愤怒 disgust:厌恶 fear:恐惧 happy:高兴 sad:伤心 surprise:惊讶 neutral:无表情 pouty: 撅嘴 grimace:鬼脸
         }
 
         return attribute
@@ -564,13 +567,169 @@ class Target:
                     print(f"\t车辆{relation['car_id']} 人脸{relation['face_id']}")
 
 
+class FaceTarget:
+
+    def __init__(self, alg_type):
+        self.alg_type = alg_type
+        self.db = DB()
+        self.config = Util.read_config()
+
+    def target(self):
+
+        # 1、数据存入数据库
+        Util().file_insert_db(self.config['file_path'][self.alg_type], self.alg_type, self.db)
+
+        # 2、查询所有数据存放如list中
+        result = self.db.execute_sql(
+            f"""select id, image from algorithm where alg_type='{self.alg_type}'""")
+
+        # 3、调用接口，按顺序每条数据和它下方数据进行比对，并返回相似度
+        headers = BaiAuth(self.config["server"]["DianJun"]["user"],
+                         self.config["server"]["DianJun"]["password"]).generate_auth_headers(self.config["server"]["DianJun"]["url"])
+
+
+        self.db.close()
+
+    def test1(self):
+        headers = BaiAuth(self.config["server"]["DianJun"]["user"],
+                          self.config["server"]["DianJun"]["password"]). \
+            generate_auth_headers(self.config["server"]["DianJun"]["url"])
+        path = "/Users/sunzhaohui/Desktop/SensoroTestData/baidu_human_face/验证/"
+        file_list = list(os.walk(path))[0][2]
+        file_list.remove('.DS_Store')
+        # for file in file_list:
+        #     print(file)
+
+        lenth = len(file_list)
+        num = 0
+        num_80 = 0
+        for i in range(lenth-1):
+            f1 = path + file_list[i]
+            with open(f1, 'rb') as image_file:
+                f1_64 = {"image_base64": base64.b64encode(image_file.read()).decode()}
+            for j in range(i+1, lenth):
+                f2 = path + file_list[j]
+                with open(f2, 'rb') as image_file:
+                    f2_64 = {"image_base64": base64.b64encode(image_file.read()).decode()}
+                params = {"face1": f1_64, "face2": f2_64}
+                api = self.config["server"]["DianJun"]["url"] + self.config["url_map"][self.alg_type]
+
+                r = requests.post(api, json=params, headers=headers)
+
+                rep = r.json()
+
+                num += 1
+                if rep['data']['score'] < 90:
+                    num_80 += 1
+                    print(file_list[i], file_list[j], rep['data']['score'])
+
+        print(f"{lenth}张图片，共比对{num}次，小于90的数据为：{num_80}")
+                # print(rep['data']['score'])
+
+    def test(self):
+        headers = BaiAuth(self.config["server"]["DianJun"]["user"],
+                          self.config["server"]["DianJun"]["password"]). \
+            generate_auth_headers(self.config["server"]["DianJun"]["url"])
+
+        path1 = "/Users/sunzhaohui/Desktop/SensoroTestData/baidu_human_face/门禁抓拍/"
+        path2 = "/Users/sunzhaohui/Desktop/SensoroTestData/baidu_human_face/取数据/"
+        # f1 = list(os.walk(path1))[0][2]
+        # f2 = list(os.walk(path2))[0][2]
+
+        for i in list(os.walk(path2))[0][2]:
+            if i == '.DS_Store':
+                continue
+            print(f'与{i}相似图片如下：')
+            f1 = path2 + i
+            n1 = i[0:9]
+            with open(f1, 'rb') as image_file:
+                f1_64 = {"image_base64": base64.b64encode(image_file.read()).decode()}
+            for j in list(os.walk(path1))[0][2]:
+                if j == '.DS_Store' or '门禁抓拍' in j:
+                    continue
+                f2 = path1 + j
+
+                with open(f2, 'rb') as image_file:
+                    f2_64 = {"image_base64": base64.b64encode(image_file.read()).decode()}
+
+                params = {"face1": f1_64, "face2": f2_64}
+
+                api = self.config["server"]["DianJun"]["url"] + self.config["url_map"][self.alg_type]
+
+                r = requests.post(api, json=params, headers=headers)
+
+                rep = r.json()
+                # if j % 100 == 0:
+                #     print(j)
+                if 'data' in rep:
+                    if rep['data']['score'] >= 90:
+                        os.rename(f2, path1+n1+j)
+            # if i % 100 == 0:
+            #     print(i)
+
+    def test2(self):
+        headers = BaiAuth(self.config["server"]["DianJun"]["user"],
+                          self.config["server"]["DianJun"]["password"]). \
+            generate_auth_headers(self.config["server"]["DianJun"]["url"])
+
+        path1 = "/Users/sunzhaohui/Desktop/SensoroTestData/baidu_human_face/相同统计/"
+        file_list = list(os.walk(path1))[0][2]
+        new_file_list = []
+
+        for i in file_list:
+            if '0035' in i and '门禁登记照' not in i:
+                new_file_list.append(i)
+
+        f1 = "/Users/sunzhaohui/Desktop/SensoroTestData/baidu_human_face/门禁登记照/689.jpg"
+        with open(f1, 'rb') as image_file:
+            f1_64 = {"image_base64": base64.b64encode(image_file.read()).decode()}
+
+        score_all =0.00
+        num = 0
+        num_90 = 0
+        num_80 = 0
+        num_70 = 0
+        num_60 = 0
+        num_50 = 0
+
+        for j in new_file_list:
+            f2 = path1 + j
+            with open(f2, 'rb') as image_file:
+                f2_64 = {"image_base64": base64.b64encode(image_file.read()).decode()}
+
+            params = {"face1": f1_64, "face2": f2_64}
+
+            api = self.config["server"]["DianJun"]["url"] + self.config["url_map"][self.alg_type]
+
+            r = requests.post(api, json=params, headers=headers)
+
+            rep = r.json()
+            # if j % 100 == 0:
+            #     print(j)
+            score_all += rep['data']['score']
+            num += 1
+            print(j, '\t', rep['data']['score'])
+            if rep['data']['score'] >= 90:
+                num_90 += 1
+            elif rep['data']['score'] >= 80:
+                num_80 += 1
+            elif rep['data']['score'] >= 70:
+                num_70 += 1
+            elif rep['data']['score'] >= 60:
+                num_60 += 1
+            else:
+                num_50 += 1
+        print(f'平均：{score_all/num}\n抓拍总数：{num}，{num_90}张相似度大于90，{num_80}张相似度大于80，'
+              f'{num_70}张相似度大于70，{num_60}张相似度大于60，{num_50}张相似度小于60')
+
+
 if __name__ == '__main__':
 
     print('file processing started！', time.strftime('%Y-%m-%d %H:%M:%S'))
 
     while True:
-        api = input("请选择调用的api\n1、全目标\n2、船只识别：\n3、非法捕鱼\n4、垃圾桶检测\n")
-        if api not in ("1", "2", "3", "4"):
+        api = input("请选择调用的api\n1、全目标\n2、船只识别：\n3、非法捕鱼\n4、垃圾桶检测\n5、人脸比对算子（一对一)\n")
+        if api not in ("1", "2", "3", "4", "5"):
             print("选择错误！")
             continue
         else:
@@ -584,6 +743,13 @@ if __name__ == '__main__':
         Target("fish").target()
     elif int(api) == 4:
         Target('trash').target()
+    elif int(api) == 5:
+        # FaceTarget('face').target()
+        # FaceTarget('face').test()   # 取数据使用
+        # FaceTarget('face').test1()  # 同一人确认识别率
+        FaceTarget('face').test2()  # 登记照与门禁抓拍比较
+
+    # FaceTarget('face').test1()
 
     print('file processing end！', time.strftime('%Y-%m-%d %H:%M:%S'))
 
