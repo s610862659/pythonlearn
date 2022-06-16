@@ -13,6 +13,17 @@ sdk: # 算法sdk地址及用户名
     url: https://openai-api.dianjun.sensoro.vip
     user: f4c8620816b74f7a9ccf184ece74117f
     password: Sensoro2021A#BaoDingA#365
+  pre:
+    url: https://openai-pre-api.dianjun.sensoro.vip
+    user: f4c8620816b74f7a9ccf184ece74117f
+    password: Sensoro2021A#BaoDingA#365
+
+url_map:  # 算法url
+  full: "/v1/whole/target/detect"  # 全目标
+  boat: "/v1/boat/detect"  # 船只识别
+  fish: "/v1/fishing/detect"  # 非法捕鱼
+  tarsh: "/v1/trash/status/detect"  # 垃圾桶状态识别
+  face: "/v1/human/face/match"  # 人脸比对（一对一）
 
 time: # 下载视频起止时间
   startTime: 2022-03-01 00:00:00

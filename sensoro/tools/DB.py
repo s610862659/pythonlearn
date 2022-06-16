@@ -4,7 +4,7 @@ import pymysql
 import datetime
 from typing import Union
 import json
-from ReadConfig import *
+from sensoro.tools.ReadConfig import *
 
 
 class DB:
