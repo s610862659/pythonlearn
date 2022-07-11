@@ -9,14 +9,14 @@
     (目前有对场景图抠出的小图的外扩逻辑, 所以可能仍会有误差)， 若不一致特征距离是否在0.1以内
 """
 
-from sensoro.tools.ReadConfig import *
-from sensoro.tools.DrawRectangle import draw_rectangle
+from sensoro.tools.read_file import *
+from sensoro.tools.draw_rectangle import draw_rectangle
 from sensoro.tools.get_point import get_point
-from sensoro.baidu_api.openai_sdk_base import BaiduAi
+from sensoro.api.openai_sdk_base import BaiduAi
 import math
 import os
 
-config = read_config()
+config = ReadFile().read_config()
 
 
 def test_flag():

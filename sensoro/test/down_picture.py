@@ -1,14 +1,14 @@
 # coding=utf-8
 """
-1、通过json文件中的图片url下载图片，并记录相关属性内容
-2、算法对比测试使用数据
+1、通过json文件中的图片url下载图片
+2、有相关属性则记录，无则不记录
+3、判断是否需要保存至数据库
 """
 
 import requests
 import json
 import os
-from openpyxl import load_workbook
-from DB import DB
+from sensoro.tools.db import DB
 
 
 # 读取json文件并
@@ -16,12 +16,15 @@ from DB import DB
 # 保存图片及属性、坐标到数据库
 def read_json(path, db):
 
-    for folder in ['机动车']:
+    for folder in ['人脸', '人体', '非机动车', '机动车']:
         n = 0   # 每次循环给下载文件取名用
         files = os.listdir(os.path.join(path, folder))
+
         if '.DS_Store' in files:
             files.remove('.DS_Store')
         for name in files:
+            if '.jpeg' in name:
+                continue
             file = os.path.join(os.path.join(path, folder), name)
             # file = '/Users/sunzhaohui/Desktop/SensoroTestData/算法对比测试集/人脸/202107011712_export_json_0513人脸标注测试.json'
             obj_list = json.load(open(file, 'r'))
@@ -91,7 +94,7 @@ def read_json(path, db):
 
 def update_day():   # 更新时间段
     data = db.execute_sql(
-        f"""select id, attribute from algorithm_precision where type=3""")
+        f"""select id, attribute from algorithm_precision""")
 
     for im_id, att in data:  # 洗数据
         att = json.loads(att)['attribute']
@@ -103,7 +106,7 @@ def update_day():   # 更新时间段
 if __name__ == "__main__":
 
     db = DB()
-    read_json("/Users/sunzhaohui/Desktop/SensoroTestData/算法对比测试集/", db=db)
+    # read_json("/Users/sunzhaohui/Desktop/升哲资料/SensoroTestData/属性对比测试集/", db=db)
     update_day()
 
     # data = db.execute_sql(f"""select id, attribute from algorithm_precision where type=3""")

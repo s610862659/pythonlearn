@@ -4,11 +4,11 @@ import pymysql
 import datetime
 from typing import Union
 import json
-from sensoro.tools.ReadConfig import *
+from sensoro.tools.read_file import *
 
 
 class DB:
-    mysql = read_config()['database']
+    mysql = ReadFile.read_config("$.database")[0]
 
     def __init__(self):
         """
