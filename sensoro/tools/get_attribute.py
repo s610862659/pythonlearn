@@ -1,5 +1,5 @@
 #!/usr/env/bin/python3
-# -*- coding:utf-8
+# -*- coding:utf-8 -*-
 """
 1、调用全目标检测算子并返回人脸、人体、机动车、非机动车属性内容
 2、一张图仅有一个对象时适用
@@ -45,19 +45,21 @@ class GetAttribute:
             self.result['attribute']['性别'] = '未知'
 
         if item['glasses']['name'] == 'common':
-            self.result['attribute']['眼镜'] = '戴普通眼镜'
+            self.result['attribute']['眼镜'] = '戴眼镜'
         elif item['glasses']['name'] == 'sun':
             self.result['attribute']['眼镜'] = '戴墨镜'
         elif item['glasses']['name'] == 'none':
-            self.result['attribute']['眼镜'] = '未戴眼镜'
+            self.result['attribute']['眼镜'] = '无眼镜'
         else:
             self.result['attribute']['眼镜'] = '未知'
 
         if item['age'] <= 6:
-            self.result['attribute']['年龄段'] = '小孩'
-        elif 7 < item['age'] <= 40:
+            self.result['attribute']['年龄段'] = '幼儿'
+        elif 7 <= item['age'] <= 18:
+            self.result['attribute']['年龄段'] = '青少年'
+        elif 19 <= item['age'] <= 40:
             self.result['attribute']['年龄段'] = '青年'
-        elif 40 < item['age'] <= 60:
+        elif 41 <= item['age'] <= 60:
             self.result['attribute']['年龄段'] = '中年'
         elif item['age'] > 60:
             self.result['attribute']['年龄段'] = '老年'
@@ -65,22 +67,23 @@ class GetAttribute:
             self.result['attribute']['年龄段'] = '未知'
 
         if item['mask']['name'] == '1':
-            self.result['attribute']['佩戴口罩'] = '佩戴口罩'
+            self.result['attribute']['佩戴口罩'] = '戴口罩'
         elif item['mask']['name'] == '0':
-            self.result['attribute']['佩戴口罩'] = '未戴口罩'
+            self.result['attribute']['佩戴口罩'] = '无口罩'
         else:
             self.result['attribute']['佩戴口罩'] = '未知'
 
     def human(self, item):
-        # 帽子
-        if item['attribute']['headwear']['name'] == '无帽':
-            self.result['attribute']['帽子'] = '未戴帽子'
-        elif item['attribute']['headwear']['name'] == '普通帽':
-            self.result['attribute']['帽子'] = '戴普通帽子'
-        elif item['attribute']['headwear']['name'] == '安全帽':
-            self.result['attribute']['帽子'] = '戴安全帽子'
-        else:
-            self.result['attribute']['帽子'] = '未知'
+        # 帽子 - 修改
+        self.result['attribute']['帽子'] = item['attribute']['headwear']['name']
+        # if item['attribute']['headwear']['name'] == '无帽':
+        #     self.result['attribute']['帽子'] = '未戴帽子'
+        # elif item['attribute']['headwear']['name'] == '普通帽':
+        #     self.result['attribute']['帽子'] = '戴普通帽子'
+        # elif item['attribute']['headwear']['name'] == '安全帽':
+        #     self.result['attribute']['帽子'] = '戴安全帽子'
+        # else:
+        #     self.result['attribute']['帽子'] = '未知'
 
         # 性别
         if item['attribute']['gender']['name'] == '男性':
@@ -90,64 +93,40 @@ class GetAttribute:
         else:
             self.result['attribute']['性别'] = '未知'
 
-        # 眼镜
-        if item['attribute']['glasses']['name'] == '戴眼镜':
-            self.result['attribute']['眼镜'] = '戴普通眼镜'
-        elif item['attribute']['glasses']['name'] == '戴墨镜':
-            self.result['attribute']['眼镜'] = '戴墨镜'
-        elif item['attribute']['glasses']['name'] == '无眼镜':
-            self.result['attribute']['眼镜'] = '未戴眼镜'
-        else:
+        # 眼镜 - 修改
+        if item['attribute']['glasses']['name'] == '不确定':
             self.result['attribute']['眼镜'] = '未知'
-
-        if item['attribute']['age']['name'] == '幼儿':
-            self.result['attribute']['年龄段'] = '小孩'
-        elif item['attribute']['age']['name'] in ('青少年', '青年'):
-            self.result['attribute']['年龄段'] = '青年'
-        elif item['attribute']['age']['name'] == '中年':
-            self.result['attribute']['年龄段'] = '中年'
-        elif item['attribute']['age']['name'] == '老年':
-            self.result['attribute']['年龄段'] = '老年'
         else:
-            self.result['attribute']['年龄段'] = '未知'
+            self.result['attribute']['眼镜'] = item['attribute']['glasses']['name']
 
-        if item['attribute']['upper_wear_texture']['name'] in ('纯色', '图案', '条纹', '格子'):
-            self.result['attribute']['上身纹理'] = item['attribute']['upper_wear_texture']['name']
-        elif item['attribute']['upper_wear_texture']['name'] == '碎花':
-            self.result['attribute']['上身纹理'] = '花纹'
-        elif item['attribute']['upper_wear_texture']['name'] == '条纹或格子':
-            self.result['attribute']['上身纹理'] = '格子'
-        else:
-            self.result['attribute']['上身纹理'] = '未知'
+        # 年龄段 - 修改
+        self.result['attribute']['年龄段'] = item['attribute']['age']['name']
 
-        # 上身颜色
-        if item['attribute']['upper_color']['name'] in ('红', '橙', '黄', '绿', '蓝', '紫', '粉', '黑', '白', '灰', '棕'):
-            self.result['attribute']['上身颜色'] = f"{item['attribute']['upper_color']['name']}色"
-        else:
-            self.result['attribute']['上身颜色'] = '未知'
+        # 上身纹理 - 修改
+        self.result['attribute']['上身纹理'] = item['attribute']['upper_wear_texture']['name']
 
+        # 上身颜色 - 修改
+        self.result['attribute']['上身颜色'] = f"{item['attribute']['upper_color']['name']}色"
+
+        # 下身类别 - 修改
         if item['attribute']['lower_wear']['name'] == '不确定':
             self.result['attribute']['下身类别'] = '未知'
         else:
             self.result['attribute']['下身类别'] = item['attribute']['lower_wear']['name']
 
-        if item['attribute']['upper_color']['name'] in ('红', '橙', '黄', '绿', '蓝', '紫', '粉', '黑', '白', '灰', '棕'):
-            self.result['attribute']['下身颜色'] = f"{item['attribute']['lower_color']['name']}色"
-        else:
-            self.result['attribute']['下身颜色'] = '未知'
+        # 下身颜色 - 修改
+        self.result['attribute']['下身颜色'] = f"{item['attribute']['lower_color']['name']}色"
 
+        # 朝向
         if item['attribute']['orientation']['name'] in ('正面', '背面', '左侧面', '右侧面'):
             self.result['attribute']['人体朝向'] = item['attribute']['orientation']['name']
         else:
             self.result['attribute']['人体朝向'] = '未知'
 
-        if item['attribute']['face_mask']['name'] == '戴口罩':
-            self.result['attribute']['佩戴口罩'] = '佩戴口罩'
-        elif item['attribute']['face_mask']['name'] == '无口罩':
-            self.result['attribute']['佩戴口罩'] = '未戴口罩'
-        else:
-            self.result['attribute']['佩戴口罩'] = '未知'
+        # 佩戴口罩 - 修改
+        self.result['attribute']['佩戴口罩'] = item['attribute']['face_mask']['name']
 
+        # 动作姿态
         if item['attribute']['action']['name'] in ('站立', '蹲或坐', '走', '跑'):
             self.result['attribute']['动作姿态'] = item['attribute']['action']['name']
         else:
@@ -159,24 +138,30 @@ class GetAttribute:
         else:
             self.result['attribute']['是否吸烟'] = '未知'
 
+        # 随身物品 - 修改
         self.result['attribute']['随身物品'] = []
         if item['attribute']['carrying_baby']['name'] == '抱小孩':
             self.result['attribute']['随身物品'].append('抱小孩')
         if item['attribute']['bag']['name'] == '单肩包':
-            self.result['attribute']['随身物品'].append('单肩包或斜挎包')
+            # self.result['attribute']['随身物品'].append('单肩包或斜挎包')
+            self.result['attribute']['随身物品'].append('单肩包')
         elif item['attribute']['bag']['name'] == '双肩包':
             self.result['attribute']['随身物品'].append('双肩包')
         if item['attribute']['umbrella']['name'] == '打伞':
             self.result['attribute']['随身物品'].append('打伞')
         if item['attribute']['carrying_item']['name'] == '有手提物':
-            self.result['attribute']['随身物品'].append('拎物品')
+            # self.result['attribute']['随身物品'].append('拎物品')
+            self.result['attribute']['随身物品'].append('有手提物')
         if item['attribute']['luggage']['name'] == '有拉杆箱':
-            self.result['attribute']['随身物品'].append('行李箱')
+            # self.result['attribute']['随身物品'].append('行李箱')
+            self.result['attribute']['随身物品'].append('有拉杆箱')
 
+        # 是否用手机 - 修改
         if item['attribute']['cellphone']['name'] in ('未使用手机', '看手机'):
             self.result['attribute']['是否用手机'] = item['attribute']['cellphone']['name']
         elif item['attribute']['cellphone']['name'] == '打电话':
-            self.result['attribute']['是否用手机'] = '打手机'
+            # self.result['attribute']['是否用手机'] = '打手机'
+            self.result['attribute']['是否用手机'] = '打电话'
         else:
             self.result['attribute']['是否用手机'] = '未知'
             
@@ -189,12 +174,7 @@ class GetAttribute:
 
         # 是否有车牌
         if 'has_plate' in item['attribute']:
-            if item['attribute']['has_plate']['name'] == '有车牌':
-                self.result['attribute']['是否有车牌'] = '有车牌号码'
-            elif item['attribute']['has_plate']['name'] == '无车牌':
-                self.result['attribute']['是否有车牌'] = '无车牌'
-            else:
-                self.result['attribute']['是否有车牌'] = '未知'
+            self.result['attribute']['是否有车牌'] = item['attribute']['has_plate']['name']
         else:
             self.result['attribute']['是否有车牌'] = '未知'
 
@@ -206,6 +186,8 @@ class GetAttribute:
                 self.result['attribute']['车牌颜色'] = '黄色'
             elif item['plate']['plate_color'] == 'white':
                 self.result['attribute']['车牌颜色'] = '白色'
+            elif item['plate']['plate_color'] == 'green':
+                self.result['attribute']['车牌颜色'] = '绿色'
             else:
                 self.result['attribute']['车牌颜色'] = '未知'
         else:
@@ -215,7 +197,6 @@ class GetAttribute:
         self.result['attribute']['车牌状态'] = []
         if 'plate_cover' in item['attribute']:
             self.result['attribute']['车牌状态'].append(item['attribute']['plate_cover']['name'])
-            self.result['attribute']['车牌状态'].append(item['attribute']['has_plate']['name'])
             self.result['attribute']['车牌状态'].append(item['attribute']['plate_stained']['name'])
 
         # 机动车品牌
@@ -225,17 +206,14 @@ class GetAttribute:
             self.result['attribute']['机动车品牌'] = '未知'
 
         # 机动车类型；百度无此字段，取特殊车辆统计
-        self.result['attribute']['机动车类型'] = '未知'
+        if 'desc' in item:
+            self.result['attribute']['机动车类型'] = item['desc']
 
         # 车身颜色
         if 'vehicle_color' in item['attribute']:
             vehicle_color = item['attribute']['vehicle_color']['name'].replace('车身颜色', '')
-            if vehicle_color in ('红色', '橙色', '黄色', '绿色', '蓝色', '紫色', '棕色', '粉色', '白色', '黑色'):
+            if vehicle_color in ('红色', '橙色', '黄色', '绿色', '青色', '蓝色', '紫色', '棕色', '粉色', '白色', '黑色', '深灰色', '金银色'):
                 self.result['attribute']['车身颜色'] = vehicle_color
-            elif vehicle_color == '深空灰':
-                self.result['attribute']['车身颜色'] = '灰色'
-            elif vehicle_color == '金银色':
-                self.result['attribute']['车身颜色'] = '银色'
             else:
                 self.result['attribute']['车身颜色'] = '未知'
         else:
@@ -423,8 +401,6 @@ class GetAttribute:
             if item['attribute']['special_vehicle']['name'] in ('普通车', '施工工程车', '校车', '搅拌车', '救护车',
                                                                 '工程抢险车', '警车', '消防车', '洒水车'):
                 self.result['attribute']['特殊车辆'] = item['attribute']['special_vehicle']['name']
-            elif item['attribute']['special_vehicle']['name'] == '施工工程车':
-                self.result['attribute']['特殊车辆'] = '市政工程&环卫&园林车'
         elif 'slag_vehicle' in item['attribute']:
             if item['attribute']['slag_vehicle']['name'] == '渣土车':
                 self.result['attribute']['特殊车辆'] = '渣土车'
@@ -506,9 +482,4 @@ class GetAttribute:
 
         # 车辆类型;category - desc
         # print(item)
-        if item['desc'] in ('摩托车', '电动摩托车', '电动自行车'):
-            self.result['attribute']['车辆类型'] = '摩托车/电瓶车（电动摩托车/电动自行车）'
-        elif item['desc'] in ('儿童脚踏车', '手推车', '滑板车', '自行车', '三轮车'):
-            self.result['attribute']['车辆类型'] = item['desc']
-        else:
-            self.result['attribute']['车辆类型'] = '未知'
+        self.result['attribute']['车辆类型'] = item['desc']

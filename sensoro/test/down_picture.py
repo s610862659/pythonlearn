@@ -16,7 +16,7 @@ from sensoro.tools.db import DB
 # 保存图片及属性、坐标到数据库
 def read_json(path, db):
 
-    for folder in ['人脸', '人体', '非机动车', '机动车']:
+    for folder in ['人体', '人脸', '机动车', '非机动车']:
         n = 0   # 每次循环给下载文件取名用
         files = os.listdir(os.path.join(path, folder))
 
@@ -74,14 +74,90 @@ def read_json(path, db):
                     open(picture_file, 'wb').write(picture.content)
 
                     if folder == '人脸':
+                        if data['attribute']['年龄段'] == '小孩':
+                            data['attribute']['年龄段'] == '幼儿'
+
+                        if data['attribute']['佩戴口罩'] == '未戴口罩':
+                            data['attribute']['佩戴口罩'] = '无口罩'
+                        elif data['attribute']['佩戴口罩'] == '佩戴口罩':
+                            data['attribute']['佩戴口罩'] = '戴口罩'
+
+                        if data['attribute']['眼镜'] == '未戴眼镜':
+                            data['attribute']['眼镜'] = '无眼镜'
+                        elif data['attribute']['眼镜'] == '戴普通眼镜':
+                            data['attribute']['眼镜'] = '戴眼镜'
+                        elif data['attribute']['眼镜'] == '戴太阳镜':
+                            data['attribute']['眼镜'] = '戴墨镜'
+
                         db.execute_sql(f"""
-                        insert into algorithm_precision(file_path, type, attribute) 
+                        insert into algorithm_precision(file_path, type, attribute)
                         values ('{picture_file}', {1}, '{json.dumps(data, ensure_ascii=False)}')""")
                     elif folder == '人体':
+                        # print(data)
+
+                        if data['attribute']['眼镜'] == '未戴眼镜':
+                            data['attribute']['眼镜'] = '无眼镜'
+                        elif data['attribute']['眼镜'] == '戴普通眼镜':
+                            data['attribute']['眼镜'] = '戴眼镜'
+                        elif data['attribute']['眼镜'] == '戴太阳镜':
+                            data['attribute']['眼镜'] = '戴墨镜'
+
+                        if data['attribute']['佩戴口罩'] == '未戴口罩':
+                            data['attribute']['佩戴口罩'] = '无口罩'
+                        elif data['attribute']['佩戴口罩'] == '佩戴口罩':
+                            data['attribute']['佩戴口罩'] = '戴口罩'
+
+                        # 无帽、普通帽、安全帽
+                        if data['attribute']['帽子'] == '未戴帽子':
+                            data['attribute']['帽子'] = '无帽'
+                        elif data['attribute']['帽子'] == '戴普通帽子':
+                            data['attribute']['帽子'] = '普通帽'
+                        elif data['attribute']['帽子'] in ('头盔', '佩戴蓝色安全帽'):
+                            data['attribute']['帽子'] = '安全帽'
+
+                        if data['attribute']['上身纹理'] == '花纹':    # 纯色、图案、碎花、条纹或格子
+                            data['attribute']['上身纹理'] = '碎花'
+                        elif data['attribute']['上身纹理'] in ('条纹', '格子'):    # 纯色、图案、碎花、条纹或格子
+                            data['attribute']['上身纹理'] = '条纹或格子'
+
+                        if '随身物品' in data['attribute']:
+                            if data['attribute']['随身物品']:
+                                for i in range(len(data['attribute']['随身物品'])):
+                                    if data['attribute']['随身物品'][i] == '单肩包或斜挎包':
+                                        data['attribute']['随身物品'][i] = '单肩包'
+                                    elif data['attribute']['随身物品'][i] == '拎物品':
+                                        data['attribute']['随身物品'][i] = '有手提物'
+                                    elif data['attribute']['随身物品'][i] == '行李箱':
+                                        data['attribute']['随身物品'][i] = '拉杆箱'
+                        if '是否吸烟' not in data['attribute']:
+                            data['attribute']['是否吸烟'] = '未知'
+                        if '是否用手机' not in data['attribute']:
+                            data['attribute']['是否用手机'] = '未知'
+                        elif data['attribute']['是否用手机'] == '打手机':
+                            data['attribute']['是否用手机'] = '打电话'
+
                         db.execute_sql(f"""
-                        insert into algorithm_precision(file_path, type, attribute) 
+                        insert into algorithm_precision(file_path, type, attribute)
                         values ('{picture_file}', {2}, '{json.dumps(data, ensure_ascii=False)}')""")
                     elif folder == '机动车':
+                        if data['attribute']['是否有车牌'] == '有车牌号码':
+                            data['attribute']['是否有车牌'] = '有车牌'
+
+                        if data['attribute']['车牌状态']:
+                            for i in range(len(data['attribute']['车牌状态'])):
+                                if data['attribute']['车牌状态'][i] in ('部分遮挡', '全部遮挡'):
+                                    data['attribute']['车牌状态'][i] = '车牌遮挡'
+                                elif data['attribute']['车牌状态'][i] == '未遮挡':
+                                    data['attribute']['车牌状态'][i] = '车牌未遮挡'
+
+                        if data['attribute']['车身颜色'] == '灰色':
+                            data['attribute']['车身颜色'] = '深灰色'
+                        elif data['attribute']['车身颜色'] == '银色':
+                            data['attribute']['车身颜色'] = '金银色'
+
+                        if data['attribute']['特殊车辆'] == '市政工程&环卫&园林车':
+                            data['attribute']['特殊车辆'] = '施工工程车'
+
                         db.execute_sql(f"""
                         insert into algorithm_precision(file_path, type, attribute) 
                         values ('{picture_file}', {3}, '{json.dumps(data, ensure_ascii=False)}')""")
@@ -106,7 +182,7 @@ def update_day():   # 更新时间段
 if __name__ == "__main__":
 
     db = DB()
-    # read_json("/Users/sunzhaohui/Desktop/升哲资料/SensoroTestData/属性对比测试集/", db=db)
+    read_json("/Users/sunzhaohui/Desktop/升哲资料/SensoroTestData/属性对比测试集/", db=db)
     update_day()
 
     # data = db.execute_sql(f"""select id, attribute from algorithm_precision where type=3""")

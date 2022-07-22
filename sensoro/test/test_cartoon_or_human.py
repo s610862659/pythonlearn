@@ -6,9 +6,10 @@
 """
 import os
 from sensoro.tools import extractor
+from sensoro.tools.openai_baidu import *
 
 
-def test(baidu, url: list, path):
+def test(url: list, path):
 
     # 记录v1 v2检测正确数据
     result = {'cartoon': 0, 'human': 0}
@@ -23,12 +24,14 @@ def test(baidu, url: list, path):
             if image == '.DS_Store':
                 continue
             # image = '卡通.jpeg'
-            response = baidu.base_detect(
-                url_path=url,
-                image=os.path.join(path, f"{folder}/{image}"),
-                image_type='filepath',
-                enable_multiple=True
-            )
+
+            response = get_baidu(url, os.path.join(path, f"{folder}/{image}"), 'filepath')
+            # response = baidu.base_detect(
+            #     url_path=url,
+            #     image=os.path.join(path, f"{folder}/{image}"),
+            #     image_type='filepath',
+            #     enable_multiple=True
+            # )
             # print(response)
             try:
                 face_type = extractor(response, '$..face_type')[0]

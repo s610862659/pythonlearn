@@ -8,33 +8,38 @@
 from sensoro.tools.draw_rectangle import draw_rectangle
 from sensoro.tools.recording import *
 from sensoro.tools.get_attribute import *
+from sensoro.tools.openai_baidu import *
+import time
 import json
 import os
 
 
 # 1、根据图片类型，获取对应属性，并调用不同对象方法，将属性与标记字段映射存储到数据库
 class WholeTarget:
-    def __init__(self, db, baidu, url: list):
+    def __init__(self, db, url: list):
         self.db = db
-        self.baidu = baidu
+        # self.baidu = baidu
         self.url = url
         # self.result = {}    # 记录属性及坐标内容，保存至数据库
         self.version = ''   # 记录版本，数据存入数据库时使用
 
     def whole_target(self):
         data = self.db.execute_sql(f"""
-        select id,attribute, file_path,type from algorithm_precision where delete_time is null""")
+        select id,attribute, file_path,type from algorithm_precision where delete_time is null and type=1""")
         # print(data)
         for im_id, attribute, image, im_type in data:
             if not os.path.exists(image):
-                self.db.execute_sql(f"""update algorithm_precision set delete_time='2022-07-05 15:01:53' where id={im_id}""")
+                self.db.execute_sql(f"""update algorithm_precision 
+                set delete_time='{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}' where id={im_id}""")
                 continue
-            for num in range(len(self.url)):
-                try:
-                    response = self.baidu.base_detect(
-                        self.url[num], image, "filepath", enable_multiple=True)
-                    # print(json.dumps(response))
 
+            for num in range(len(self.url)):
+
+                try:
+                    response = get_baidu(self.url[num], image, 'filepath')
+
+                    print(json.dumps(response))
+                    a = input('11')
                     if 'data' in response:
                         # print(response)
                         item = self.calc_overlap_rate(response['data']['items'], attribute, im_type)
@@ -58,16 +63,17 @@ class WholeTarget:
                         else:
                             result = GetAttribute().get_attribute('ele-car', item)
                         self.db.execute_sql(
-                            f"""update algorithm_precision set {self.version}='{json.dumps(result, ensure_ascii=False)}' 
-                                            where id={im_id}""")
+                            f"""update algorithm_precision 
+                            set {self.version}='{json.dumps(result, ensure_ascii=False)}' where id={im_id}""")
                 except Exception as e:
                     raise e
-                    print('返回无数据或服务异常', e)
-                    continue
+                    # print('返回无数据或服务异常', e)
+                    # continue
             im_data = self.db.execute_sql(f"""select v1, v2 from algorithm_precision where id={im_id}""")
             for v1, v2 in im_data:
                 if not v1 or not v2:
-                    self.db.execute_sql(f"""update algorithm_precision set delete_time='2022-07-10 23:50:53' where id={im_id}""")
+                    self.db.execute_sql(f"""update algorithm_precision 
+                    set delete_time='{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}' where id={im_id}""")
                     os.remove(image)
 
     # 计算与标记坐标重叠率，取重叠最大的
@@ -88,9 +94,7 @@ class WholeTarget:
                 if item['type'] == 'electric-car':
                     data.append(item)
 
-        if len(data) == 1:
-            return data[0]
-        elif len(data) > 1:
+        if len(data) > 1:
             att = json.loads(att)
             location = att['location']
             cross_area = {}
